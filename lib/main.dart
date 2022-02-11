@@ -1,155 +1,119 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+//import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:flutter_training_2/login.dart';
+import 'package:flutter_training_2/sign_up.dart';
+import 'package:flutter_training_2/chat.dart';
+import 'package:flutter_training_2/add_post.dart';
+
+// ユーザー情報の受け渡しを行うためのProvider
+final userProvider = StateProvider((ref) {
+  return FirebaseAuth.instance.currentUser;
+});
+
+// エラー情報の受け渡しを行うためのProvider
+// ※ autoDisposeを付けることで自動的に値をリセットできます
+final infoTextProvider = StateProvider.autoDispose((ref) {
+  return '';
+});
+
+// メールアドレスの受け渡しを行うためのProvider
+// ※ autoDisposeを付けることで自動的に値をリセットできます
+final emailProvider = StateProvider.autoDispose((ref) {
+  return '';
+});
+
+// パスワードの受け渡しを行うためのProvider
+// ※ autoDisposeを付けることで自動的に値をリセットできます
+final passwordProvider = StateProvider.autoDispose((ref) {
+  return '';
+});
+
+// メッセージの受け渡しを行うためのProvider
+// ※ autoDisposeを付けることで自動的に値をリセットできます
+final messageTextProvider = StateProvider.autoDispose((ref) {
+  return '';
+});
+
+// StreamProviderを使うことでStreamも扱うことができる
+// ※ autoDisposeを付けることで自動的に値をリセットできます
+final postsQueryProvider = StreamProvider.autoDispose((ref) {
+  return FirebaseFirestore.instance
+      .collection('posts')
+      .orderBy('date')
+      .snapshots();
+});
+/*
+class UserState extends ChangeNotifier {
+  User? user;
+
+  void setUser(User newUser) {
+    user = newUser;
+    notifyListeners();  //これを呼ぶと変更が通知される
+  }
+}
+*/
 Future<void> main() async {
   // Firebase初期化
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  runApp(const MyApp());
+  runApp(
+    // Riverpodでデータを受け渡しできる状態にする
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'ChatApp',
+      //home: const LoginPage(),
+      initialRoute: '/login',
+      routes: {
+        '/login' : (context) => const LoginPage(),
+        '/sign_up' : (context) => const SignUpPage(),
+        '/chat' : (context) => const ChatPage(),
+        '/add_post' : (context) => const AddPostPage(),
+      },
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyAuthPage(),
     );
   }
-}
+/*
+  // ユーザーの情報を管理するデータ
+  final UserState userState = UserState();
 
-class MyAuthPage extends StatefulWidget {
-  const MyAuthPage({Key? key}) : super(key: key);
-
-  @override
-  _MyAuthPageState createState() => _MyAuthPageState();
-}
-
-class _MyAuthPageState extends State<MyAuthPage> {
-  // 入力されたメールアドレス
-  String newUserEmail = "";
-  // 入力されたパスワード
-  String newUserPassword = "";
-  // 入力されたメールアドレス（ログイン）
-  String loginUserEmail = "";
-  // 入力されたパスワード（ログイン）
-  String loginUserPassword = "";
-  // 登録・ログインに関する情報を表示
-  String infoText = "";
-
+  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            children: <Widget>[
-              TextFormField(
-                // テキスト入力のラベルを設定
-                decoration: const InputDecoration(labelText: "メールアドレス"),
-                onChanged: (String value) {
-                  setState(() {
-                    newUserEmail = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                decoration: const InputDecoration(labelText: "パスワード（６文字以上）"),
-                // パスワードが見えないようにする
-                obscureText: true,
-                onChanged: (String value) {
-                  setState(() {
-                    newUserPassword = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () async {
-                  try {
-                    // メール/パスワードでユーザー登録
-                    final FirebaseAuth auth = FirebaseAuth.instance;
-                    final UserCredential result =
-                    await auth.createUserWithEmailAndPassword(
-                      email: newUserEmail,
-                      password: newUserPassword,
-                    );
-
-                    // 登録したユーザー情報
-                    final User user = result.user!;
-                    setState(() {
-                      infoText = "登録OK：${user.email}";
-                    });
-                  } catch (e) {
-                    // 登録に失敗した場合
-                    setState(() {
-                      infoText = "登録NG：${e.toString()}";
-                    });
-                  }
-                },
-                child: const Text("ユーザー登録"),
-              ),
-              const SizedBox(height: 8),
-
-              TextFormField(
-                decoration: const InputDecoration(labelText: "メールアドレス"),
-                onChanged: (String value) {
-                  setState(() {
-                    loginUserEmail = value;
-                  });
-                },
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: "パスワード"),
-                obscureText: true,
-                onChanged: (String value) {
-                  setState(() {
-                    loginUserPassword = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () async {
-                  try {
-                    // メール/パスワードでログイン
-                    final FirebaseAuth auth = FirebaseAuth.instance;
-                    final UserCredential result =
-                    await auth.signInWithEmailAndPassword(
-                      email: loginUserEmail,
-                      password: loginUserPassword,
-                    );
-                    // ログインに成功した場合
-                    final User user = result.user!;
-                    setState(() {
-                      infoText = "ログインOK：${user.email}";
-                    });
-                  } catch (e) {
-                    // ログインに失敗した場合
-                    setState(() {
-                      infoText = "ログインNG：${e.toString()}";
-                    });
-                  }
-                },
-                child: const Text("ログイン"),
-              ),
-              const SizedBox(height: 8),
-              Text(infoText),
-
-            ],
+    return ChangeNotifierProvider<UserState>(
+        create: (context) => UserState(),
+        child:MaterialApp(
+          title: 'Flutter Demo',
+          //home: const LoginPage(),
+          initialRoute: '/login',
+          routes: {
+            '/login' : (context) => const LoginPage(),
+            '/sign_up' : (context) => const SignUpPage(),
+            '/chat' : (context) => const ChatPage(),
+            '/add_post' : (context) => const AddPostPage(),
+          },
+          theme: ThemeData(
+            primarySwatch: Colors.blue,
           ),
         ),
-      ),
     );
   }
+*/
 }
